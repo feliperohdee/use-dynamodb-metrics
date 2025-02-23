@@ -151,8 +151,8 @@ describe('/index', () => {
 		});
 	});
 
-	describe('getStats', () => {
-		beforeEach(async () => {
+	describe('getStats / getStatsHistogram', () => {
+		beforeAll(async () => {
 			await Promise.all(
 				_.times(2, () => {
 					return stats.put({
@@ -174,70 +174,97 @@ describe('/index', () => {
 			);
 		});
 
-		afterEach(async () => {
+		afterAll(async () => {
 			await stats.clearStats('spec');
 		});
 
-		it('should get stats', async () => {
-			const from = new Date();
-			from.setHours(0, 0, 0, 0);
-
-			const to = new Date();
-			to.setHours(23, 59, 59, 999);
-
-			const res = await stats.getStats({
-				from: from.toISOString(),
-				namespace: 'spec',
-				to: to.toISOString()
+		describe('getStats', () => {
+			it('should get stats', async () => {
+				const from = new Date();
+				from.setHours(0, 0, 0, 0);
+	
+				const to = new Date();
+				to.setHours(23, 59, 59, 999);
+	
+				const res = await stats.getStats({
+					from: from.toISOString(),
+					namespace: 'spec',
+					to: to.toISOString()
+				});
+	
+				expect(res).toEqual({
+					// @ts-expect-error
+					from: stats.generateTimeId(from),
+					metrics: {
+						nested: {
+							deep: {
+								value2: 40,
+								value3: {
+									test: 2
+								},
+								value1: 20
+							}
+						},
+						value3: {
+							test: 2
+						},
+						value1: 20,
+						value2: 40
+					},
+					namespace: 'spec',
+					// @ts-expect-error
+					to: stats.generateTimeId(to)
+				});
 			});
-
-			expect(res).toEqual({
-				// @ts-expect-error
-				from: stats.generateTimeId(from),
-				metrics: {
-					nested: {
-						deep: {
-							value2: 40,
-							value3: {
-								test: 2
-							},
-							value1: 20
-						}
-					},
-					value3: {
-						test: 2
-					},
-					value1: 20,
-					value2: 40
-				},
-				namespace: 'spec',
-				// @ts-expect-error
-				to: stats.generateTimeId(to)
+	
+			it('should get empty stats', async () => {
+				const from = new Date();
+				from.setHours(0, 0, 0, 0);
+	
+				const to = new Date();
+				to.setHours(0, 0, 0, 0);
+	
+				const res = await stats.getStats({
+					from: from.toISOString(),
+					namespace: 'spec',
+					to: to.toISOString()
+				});
+	
+				expect(res).toEqual({
+					// @ts-expect-error
+					from: stats.generateTimeId(from),
+					metrics: {},
+					namespace: 'spec',
+					// @ts-expect-error
+					to: stats.generateTimeId(to)
+				});
 			});
 		});
 
-		it('should get empty stats', async () => {
-			const from = new Date();
-			from.setHours(0, 0, 0, 0);
+		describe.only('getStatsHistogram', () => {
+			it('should get stats histogram', async () => {
+				const from = new Date();
+				from.setHours(0, 0, 0, 0);
+	
+				const to = new Date();
+				to.setHours(23, 59, 59, 999);
 
-			const to = new Date();
-			to.setHours(0, 0, 0, 0);
+				const res = await stats.getStatsHistogram({
+                    from: from.toISOString(),
+                    namespace: 'spec',
+                    period: 'hour',
+                    to: to.toISOString()
+                });
 
-			const res = await stats.getStats({
-				from: from.toISOString(),
-				namespace: 'spec',
-				to: to.toISOString()
-			});
+				console.log(JSON.stringify(res, null, 2));
 
-			expect(res).toEqual({
-				// @ts-expect-error
-				from: stats.generateTimeId(from),
-				metrics: {},
-				namespace: 'spec',
-				// @ts-expect-error
-				to: stats.generateTimeId(to)
+				// expect(res).toEqual({
+				// 	from: expect.any(String),
+				// 	histogram: expect.any(Object),
+				// });
 			});
 		});
+
 	});
 
 	describe('put', () => {

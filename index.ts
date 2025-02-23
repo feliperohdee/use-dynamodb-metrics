@@ -169,13 +169,17 @@ class Stats {
 
 		const aggregatedMetrics = _.reduce(
 			res.items,
-			(reduction, record) => {
-				_.forEach(record, (value, key) => {
+			(reduction, item) => {
+				_.forEach(item, (value, key) => {
 					if (!_.startsWith(key, 'metrics.')) {
 						return;
 					}
 
-					reduction[key] = (reduction[key] || 0) + (value as number);
+					if (!_.isNumber(value)) {
+						return;
+					}
+
+					reduction[key] = (reduction[key] || 0) + value;
 				});
 
 				return reduction;
@@ -190,6 +194,70 @@ class Stats {
 			namespace: args.namespace,
 			to
 		};
+	}
+
+	async getStatsHistogram(input: Stats.GetStatsHistogramInput) {
+		const args = await getStatsHistogramInput.parseAsync(input);
+		const fromDate = new Date(args.from);
+		const toDate = new Date(args.to);
+
+		const from = this.generateTimeId(fromDate);
+		const to = this.generateTimeId(toDate);
+
+		const res = await this.db.query({
+			attributeNames: {
+				'#id': 'id',
+				'#namespace': 'namespace'
+			},
+			attributeValues: {
+				':from': from,
+				':namespace': args.namespace,
+				':to': to
+			},
+			queryExpression: '#namespace = :namespace AND #id BETWEEN :from AND :to'
+		});
+
+		// Group items into buckets based on the chosen period
+		const histogram: Record<string, Record<string, number>> = {};
+
+		for (const item of res.items) {
+			const itemDate = new Date(item.id);
+			const bucketDate = this.roundToPeriod(itemDate, args.period);
+			const bucketKey = bucketDate.toISOString();
+
+			if (!histogram[bucketKey]) {
+				histogram[bucketKey] = {};
+			}
+
+			// Aggregate metric values from each item into its bucket
+			for (const key in item) {
+				if (!_.startsWith(key, 'metrics.')) {
+					continue;
+				}
+
+				// @ts-expect-error
+				if (!_.isNumber(item[key])) {
+					continue;
+				}
+
+				// @ts-expect-error
+				histogram[bucketKey][key] = (histogram[bucketKey][key] || 0) + item[key];
+			}
+		}
+
+		const unflattenedHistogram: Record<string, any> = {};
+
+		for (const bucket in histogram) {
+			unflattenedHistogram[bucket] = this.unflattenMetrics(histogram[bucket]);
+		}
+
+		return {
+            from: this.roundToPeriod(fromDate, args.period).toISOString(),
+            histogram: unflattenedHistogram,
+            namespace: args.namespace,
+            period: args.period,
+            to: this.roundToPeriod(toDate, args.period).toISOString()
+        };
 	}
 
 	async put(input: Stats.PutInput) {
@@ -215,8 +283,32 @@ class Stats {
 	private roundToHour(date: Date): Date {
 		const rounded = new Date(date);
 		rounded.setMinutes(0, 0, 0);
-
 		return rounded;
+	}
+
+	private roundToPeriod(date: Date, period: 'hour' | 'day' | 'week' | 'month'): Date {
+		const newDate = new Date(date);
+
+		switch (period) {
+			case 'hour':
+				newDate.setMinutes(0, 0, 0);
+				break;
+			case 'day':
+				newDate.setHours(0, 0, 0, 0);
+				break;
+			case 'week': {
+				// Assuming week starts on Sunday.
+				newDate.setHours(0, 0, 0, 0);
+				const day = newDate.getDay(); // 0 (Sun) to 6 (Sat)
+				newDate.setDate(newDate.getDate() - day);
+				break;
+			}
+			case 'month':
+				newDate.setDate(1);
+				newDate.setHours(0, 0, 0, 0);
+				break;
+		}
+		return newDate;
 	}
 
 	private unflattenMetrics(metrics: Record<string, number>): Record<string, any> {
