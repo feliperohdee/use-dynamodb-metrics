@@ -245,19 +245,38 @@ class Stats {
 			}
 		}
 
-		const unflattenedHistogram: Record<string, any> = {};
+		const completeHistogram: Record<string, any> = {};
+		const currentBucketDate = this.roundToPeriod(fromDate, args.period);
+		const lastBucketDate = this.roundToPeriod(toDate, args.period);
 
-		for (const bucket in histogram) {
-			unflattenedHistogram[bucket] = this.unflattenMetrics(histogram[bucket]);
+		while (currentBucketDate <= lastBucketDate) {
+			const bucketKey = currentBucketDate.toISOString();
+			
+			completeHistogram[bucketKey] = this.unflattenMetrics(histogram[bucketKey] || {});
+
+			switch (args.period) {
+				case 'hour':
+					currentBucketDate.setHours(currentBucketDate.getHours() + 1);
+					break;
+				case 'day':
+					currentBucketDate.setDate(currentBucketDate.getDate() + 1);
+					break;
+				case 'week':
+					currentBucketDate.setDate(currentBucketDate.getDate() + 7);
+					break;
+				case 'month':
+					currentBucketDate.setMonth(currentBucketDate.getMonth() + 1);
+					break;
+			}
 		}
 
 		return {
-            from: this.roundToPeriod(fromDate, args.period).toISOString(),
-            histogram: unflattenedHistogram,
-            namespace: args.namespace,
-            period: args.period,
-            to: this.roundToPeriod(toDate, args.period).toISOString()
-        };
+			from: this.roundToPeriod(fromDate, args.period).toISOString(),
+			histogram: completeHistogram,
+			namespace: args.namespace,
+			period: args.period,
+			to: this.roundToPeriod(toDate, args.period).toISOString()
+		};
 	}
 
 	async put(input: Stats.PutInput) {
@@ -297,8 +316,8 @@ class Stats {
 				newDate.setHours(0, 0, 0, 0);
 				break;
 			case 'week': {
-				// Assuming week starts on Sunday.
 				newDate.setHours(0, 0, 0, 0);
+
 				const day = newDate.getDay(); // 0 (Sun) to 6 (Sat)
 				newDate.setDate(newDate.getDate() - day);
 				break;
@@ -308,6 +327,7 @@ class Stats {
 				newDate.setHours(0, 0, 0, 0);
 				break;
 		}
+
 		return newDate;
 	}
 
