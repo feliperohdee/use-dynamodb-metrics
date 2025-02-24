@@ -24,7 +24,7 @@ const getStatsHistogramInput = getStatsInput.extend({
 const putInput = z.object({
 	namespace: z.string(),
 	metrics: metricsInput,
-	timestamp: z.date().optional()
+	timestamp: z.string().datetime({ offset: true }).optional()
 });
 
 const stats = z.object({
@@ -49,6 +49,7 @@ namespace Stats {
 	export type ConstructorOptions = {
 		accessKeyId: string;
 		createTable?: boolean;
+		normalizeKeys?: boolean;
 		region: string;
 		secretAccessKey: string;
 		tableName: string;
@@ -64,6 +65,7 @@ namespace Stats {
 
 class Stats {
 	private db: Dynamodb<Stats.Stats>;
+	private normalizeKeys: boolean;
 	private ttlDays: number;
 
 	constructor(options: Stats.ConstructorOptions) {
@@ -85,6 +87,7 @@ class Stats {
 		}
 
 		this.db = db;
+		this.normalizeKeys = options.normalizeKeys || false;
 		this.ttlDays = options.ttlDays || 90;
 	}
 
@@ -96,6 +99,10 @@ class Stats {
 		return _.reduce(
 			obj,
 			(reduction: { key: string; value: number }[], value, key) => {
+				if (this.normalizeKeys) {
+					key = this.normalizeString(key);
+				}
+
 				const newKey = prefix ? `${prefix}.${key}` : key;
 
 				if (value && _.isObject(value) && !_.isArray(value)) {
@@ -107,6 +114,10 @@ class Stats {
 				}
 
 				if (_.isString(value)) {
+					if (this.normalizeKeys) {
+						value = this.normalizeString(value);
+					}
+
 					return [...reduction, { key: `${newKey}.${value}`, value: 1 }];
 				}
 
@@ -114,10 +125,6 @@ class Stats {
 			},
 			[]
 		);
-	}
-
-	private generateTimeId(date: Date = new Date()): string {
-		return this.roundToHour(date).toISOString();
 	}
 
 	private generateUpdateExpression(metrics: { key: string; value: number }[]): {
@@ -151,8 +158,11 @@ class Stats {
 
 	async getStats(input: Stats.GetStatsInput) {
 		const args = await getStatsInput.parseAsync(input);
-		const from = this.generateTimeId(new Date(args.from));
-		const to = this.generateTimeId(new Date(args.to));
+		const from = new Date(args.from);
+		from.setMinutes(0, 0, 0);
+
+		const to = new Date(args.to);
+		to.setMinutes(59, 59, 999);
 
 		const res = await this.db.query({
 			attributeNames: {
@@ -160,10 +170,11 @@ class Stats {
 				'#namespace': 'namespace'
 			},
 			attributeValues: {
-				':from': from,
+				':from': from.toISOString(),
 				':namespace': args.namespace,
-				':to': to
+				':to': to.toISOString()
 			},
+			limit: Infinity,
 			queryExpression: '#namespace = :namespace AND #id BETWEEN :from AND :to'
 		});
 
@@ -190,19 +201,19 @@ class Stats {
 		return {
 			metrics: {},
 			...this.unflattenMetrics(aggregatedMetrics),
-			from,
+			from: from.toISOString(),
 			namespace: args.namespace,
-			to
+			to: to.toISOString()
 		};
 	}
 
 	async getStatsHistogram(input: Stats.GetStatsHistogramInput) {
 		const args = await getStatsHistogramInput.parseAsync(input);
-		const fromDate = new Date(args.from);
-		const toDate = new Date(args.to);
+		const from = new Date(args.from);
+		from.setMinutes(0, 0, 0);
 
-		const from = this.generateTimeId(fromDate);
-		const to = this.generateTimeId(toDate);
+		const to = new Date(args.to);
+		to.setMinutes(59, 59, 999);
 
 		const res = await this.db.query({
 			attributeNames: {
@@ -210,10 +221,11 @@ class Stats {
 				'#namespace': 'namespace'
 			},
 			attributeValues: {
-				':from': from,
+				':from': from.toISOString(),
 				':namespace': args.namespace,
-				':to': to
+				':to': to.toISOString()
 			},
+			limit: Infinity,
 			queryExpression: '#namespace = :namespace AND #id BETWEEN :from AND :to'
 		});
 
@@ -246,43 +258,62 @@ class Stats {
 		}
 
 		const completeHistogram: Record<string, any> = {};
-		const currentBucketDate = this.roundToPeriod(fromDate, args.period);
-		const lastBucketDate = this.roundToPeriod(toDate, args.period);
+		const fromBucketDate = this.roundToPeriod(from, args.period);
+		const toBucketDate = this.roundToPeriod(to, args.period);
 
-		while (currentBucketDate <= lastBucketDate) {
-			const bucketKey = currentBucketDate.toISOString();
-			
+		while (fromBucketDate <= toBucketDate) {
+			const bucketKey = fromBucketDate.toISOString();
+
 			completeHistogram[bucketKey] = this.unflattenMetrics(histogram[bucketKey] || {});
 
 			switch (args.period) {
 				case 'hour':
-					currentBucketDate.setHours(currentBucketDate.getHours() + 1);
+					fromBucketDate.setHours(fromBucketDate.getHours() + 1);
 					break;
 				case 'day':
-					currentBucketDate.setDate(currentBucketDate.getDate() + 1);
+					fromBucketDate.setDate(fromBucketDate.getDate() + 1);
 					break;
 				case 'week':
-					currentBucketDate.setDate(currentBucketDate.getDate() + 7);
+					fromBucketDate.setDate(fromBucketDate.getDate() + 7);
 					break;
 				case 'month':
-					currentBucketDate.setMonth(currentBucketDate.getMonth() + 1);
+					fromBucketDate.setMonth(fromBucketDate.getMonth() + 1);
 					break;
 			}
 		}
 
 		return {
-			from: this.roundToPeriod(fromDate, args.period).toISOString(),
+			from: from.toISOString(),
 			histogram: completeHistogram,
 			namespace: args.namespace,
 			period: args.period,
-			to: this.roundToPeriod(toDate, args.period).toISOString()
+			to: to.toISOString()
 		};
 	}
+
+	private hourFloor(date?: string): Date {
+		const rounded = date ? new Date(date) : new Date();
+		rounded.setMinutes(0, 0, 0);
+
+		return rounded;
+	}
+
+	private normalizeString = _.memoize((value: string): string => {
+		value = _.trim(value);
+		value = _.toLower(value);
+		value = _.deburr(value);
+		value = value.replace(/([a-z])([A-Z])/g, '$1-$2');
+		value = value.replace(/\s+/g, '-');
+		value = value.replace(/\-+/g, '-');
+		value = _.trim(value, '-');
+
+		return value;
+	});
 
 	async put(input: Stats.PutInput) {
 		const args = await putInput.parseAsync(input);
 		const flattened = this.flattenObject(args.metrics);
-		const id = this.generateTimeId(args.timestamp);
+		const id = this.hourFloor(args.timestamp).toISOString();
 		const { attributeNames, attributeValues, updateExpression } = this.generateUpdateExpression(flattened);
 
 		return this.db.update({
@@ -297,12 +328,6 @@ class Stats {
 			updateExpression,
 			upsert: true
 		});
-	}
-
-	private roundToHour(date: Date): Date {
-		const rounded = new Date(date);
-		rounded.setMinutes(0, 0, 0);
-		return rounded;
 	}
 
 	private roundToPeriod(date: Date, period: 'hour' | 'day' | 'week' | 'month'): Date {

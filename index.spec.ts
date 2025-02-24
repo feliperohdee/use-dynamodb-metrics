@@ -3,6 +3,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, Mock,
 
 import Stats from './index';
 
+process.env.TZ = 'UTC';
+
 describe('/index', () => {
 	let stats: Stats;
 
@@ -91,37 +93,27 @@ describe('/index', () => {
 				}
 			]);
 		});
-	});
 
-	describe('generateTimeId', () => {
-		it('should round time to the hour', () => {
-			const date = new Date('2024-01-01T15:30:45.123Z');
+		it('should normalize keys', () => {
+			// @ts-expect-error
+			stats.normalizeKeys = true;
+
+			const input = {
+				Develóper: 10,
+				'Devel  óper': 'TypéScrípt'
+			};
 
 			// @ts-expect-error
-			const res = stats.generateTimeId(date);
-			expect(res).toEqual('2024-01-01T15:00:00.000Z');
-		});
-
-		it('should handle dates with gmt offset', () => {
-			const date = new Date('2024-01-01T15:30:45.123-03:00');
-
-			// @ts-expect-error
-			const res = stats.generateTimeId(date);
-			expect(res).toEqual('2024-01-01T18:00:00.000Z');
-		});
-
-		it('should use current time when no date provided', () => {
-			const now = new Date();
-			now.setMinutes(0, 0, 0);
-
-			// @ts-expect-error
-			const res = stats.generateTimeId();
-			expect(new Date(res).getHours()).toEqual(now.getHours());
+			const res = stats.flattenObject(input);
+			expect(res).toEqual([
+				{ key: 'developer', value: 10 },
+				{ key: 'devel-oper.typescript', value: 1 }
+			]);
 		});
 	});
 
 	describe('generateUpdateExpression', () => {
-		it('should generate correct DynamoDB update expression', () => {
+		it('should generate DynamoDB update expression', () => {
 			const metrics = [
 				{ key: 'value1', value: 10 },
 				{ key: 'value2', value: 20 }
@@ -154,7 +146,10 @@ describe('/index', () => {
 	describe('getStats / getStatsHistogram', () => {
 		beforeAll(async () => {
 			await Promise.all(
-				_.times(2, () => {
+				_.times(3, i => {
+					const timestamp = new Date('2024-01-01T15:30:00.000Z');
+					timestamp.setDate(timestamp.getDate() + (i % 2));
+
 					return stats.put({
 						metrics: {
 							nested: {
@@ -168,7 +163,8 @@ describe('/index', () => {
 							value2: 20,
 							value3: 'test'
 						},
-						namespace: 'spec'
+						namespace: 'spec',
+						timestamp: timestamp.toISOString()
 					});
 				})
 			);
@@ -180,88 +176,82 @@ describe('/index', () => {
 
 		describe('getStats', () => {
 			it('should get stats', async () => {
-				const from = new Date();
-				from.setHours(0, 0, 0, 0);
-
-				const to = new Date();
-				to.setHours(23, 59, 59, 999);
-
 				const res = await stats.getStats({
-					from: from.toISOString(),
+					from: '2024-01-01T15:30:00.000Z',
 					namespace: 'spec',
-					to: to.toISOString()
+					to: '2024-01-02T15:30:00.000Z'
 				});
 
 				expect(res).toEqual({
-					// @ts-expect-error
-					from: stats.generateTimeId(from),
+					from: '2024-01-01T15:00:00.000Z',
 					metrics: {
 						nested: {
 							deep: {
-								value2: 40,
+								value1: 30,
+								value2: 60,
 								value3: {
-									test: 2
-								},
-								value1: 20
+									test: 3
+								}
 							}
 						},
 						value3: {
-							test: 2
+							test: 3
 						},
-						value1: 20,
-						value2: 40
+						value1: 30,
+						value2: 60
 					},
 					namespace: 'spec',
-					// @ts-expect-error
-					to: stats.generateTimeId(to)
+					to: '2024-01-02T15:59:59.999Z'
 				});
 			});
 
 			it('should get empty stats', async () => {
-				const from = new Date();
-				from.setHours(0, 0, 0, 0);
-
-				const to = new Date();
-				to.setHours(0, 0, 0, 0);
-
 				const res = await stats.getStats({
-					from: from.toISOString(),
+					from: '2024-02-01T12:30:00-03:00',
 					namespace: 'spec',
-					to: to.toISOString()
+					to: '2024-02-02T12:30:00-03:00'
 				});
 
 				expect(res).toEqual({
-					// @ts-expect-error
-					from: stats.generateTimeId(from),
+					from: '2024-02-01T15:00:00.000Z',
 					metrics: {},
 					namespace: 'spec',
-					// @ts-expect-error
-					to: stats.generateTimeId(to)
+					to: '2024-02-02T15:59:59.999Z'
 				});
 			});
 		});
 
 		describe('getStatsHistogram', () => {
-			it('should get stats histogram', async () => {
-				const from = new Date();
-				from.setHours(0, 0, 0, 0);
-
-				const to = new Date();
-				to.setHours(0, 0, 0, 0);
-				to.setDate(to.getDate() + 1);
-
+			it('should get stats histogram (hourly)', async () => {
 				const res = await stats.getStatsHistogram({
-					from: from.toISOString(),
+					from: '2024-01-01T00:00:00+03:00',
 					namespace: 'spec',
-					period: 'day',
-					to: to.toISOString()
+					period: 'hour',
+					to: '2024-01-02T00:00:00+03:00'
 				});
 
 				expect(res).toEqual({
-					// @ts-expect-error
-					from: stats.generateTimeId(from),
+					from: '2023-12-31T21:00:00.000Z',
 					histogram: {
-						'2025-02-23T03:00:00.000Z': {
+						'2023-12-31T21:00:00.000Z': {},
+						'2023-12-31T22:00:00.000Z': {},
+						'2023-12-31T23:00:00.000Z': {},
+						'2024-01-01T00:00:00.000Z': {},
+						'2024-01-01T01:00:00.000Z': {},
+						'2024-01-01T02:00:00.000Z': {},
+						'2024-01-01T03:00:00.000Z': {},
+						'2024-01-01T04:00:00.000Z': {},
+						'2024-01-01T05:00:00.000Z': {},
+						'2024-01-01T06:00:00.000Z': {},
+						'2024-01-01T07:00:00.000Z': {},
+						'2024-01-01T08:00:00.000Z': {},
+						'2024-01-01T09:00:00.000Z': {},
+						'2024-01-01T10:00:00.000Z': {},
+						'2024-01-01T11:00:00.000Z': {},
+						'2024-01-01T12:00:00.000Z': {},
+						'2024-01-01T13:00:00.000Z': {},
+						'2024-01-01T14:00:00.000Z': {},
+						'2024-01-01T15:00:00.000Z': {
 							metrics: {
 								nested: {
 									deep: {
@@ -279,14 +269,163 @@ describe('/index', () => {
 								value2: 40
 							}
 						},
-						'2025-02-24T03:00:00.000Z': {}
+						'2024-01-01T16:00:00.000Z': {},
+						'2024-01-01T17:00:00.000Z': {},
+						'2024-01-01T18:00:00.000Z': {},
+						'2024-01-01T19:00:00.000Z': {},
+						'2024-01-01T20:00:00.000Z': {},
+						'2024-01-01T21:00:00.000Z': {}
+					},
+					namespace: 'spec',
+					period: 'hour',
+					to: '2024-01-01T21:59:59.999Z'
+				});
+			});
+
+			it('should get stats histogram (daily)', async () => {
+				const res = await stats.getStatsHistogram({
+					from: '2024-01-01T15:30:00.000Z',
+					namespace: 'spec',
+					period: 'day',
+					to: '2024-01-02T15:30:00.000Z'
+				});
+
+				expect(res).toEqual({
+					from: '2024-01-01T15:00:00.000Z',
+					histogram: {
+						'2024-01-01T00:00:00.000Z': {
+							metrics: {
+								nested: {
+									deep: {
+										value2: 40,
+										value3: {
+											test: 2
+										},
+										value1: 20
+									}
+								},
+								value3: {
+									test: 2
+								},
+								value1: 20,
+								value2: 40
+							}
+						},
+						'2024-01-02T00:00:00.000Z': {
+							metrics: {
+								nested: {
+									deep: {
+										value2: 20,
+										value3: {
+											test: 1
+										},
+										value1: 10
+									}
+								},
+								value3: {
+									test: 1
+								},
+								value1: 10,
+								value2: 20
+							}
+						}
 					},
 					namespace: 'spec',
 					period: 'day',
-					// @ts-expect-error
-					to: stats.generateTimeId(to)
+					to: '2024-01-02T15:59:59.999Z'
 				});
 			});
+
+			it('should get stats histogram with gmt offset (daily)', async () => {
+				const res = await stats.getStatsHistogram({
+					from: '2024-01-01T00:00:00-03:00',
+					namespace: 'spec',
+					period: 'day',
+					to: '2024-01-03T00:00:00-03:00'
+				});
+
+				expect(res).toEqual({
+					from: '2024-01-01T03:00:00.000Z',
+					histogram: {
+						'2024-01-01T00:00:00.000Z': {
+							metrics: {
+								nested: {
+									deep: {
+										value2: 40,
+										value3: {
+											test: 2
+										},
+										value1: 20
+									}
+								},
+								value3: {
+									test: 2
+								},
+								value1: 20,
+								value2: 40
+							}
+						},
+						'2024-01-02T00:00:00.000Z': {
+							metrics: {
+								nested: {
+									deep: {
+										value2: 20,
+										value3: {
+											test: 1
+										},
+										value1: 10
+									}
+								},
+								value3: {
+									test: 1
+								},
+								value1: 10,
+								value2: 20
+							}
+						},
+						'2024-01-03T00:00:00.000Z': {}
+					},
+					namespace: 'spec',
+					period: 'day',
+					to: '2024-01-03T03:59:59.999Z'
+				});
+			});
+		});
+	});
+
+	describe('hourFloor', () => {
+		it('should round time to the start of the hour', () => {
+			// @ts-expect-error
+			const res = stats.hourFloor('2024-01-01T15:30:45.123Z');
+			expect(res.toISOString()).toEqual('2024-01-01T15:00:00.000Z');
+		});
+
+		it('should round GMT time to the start of the hour', () => {
+			// @ts-expect-error
+			const res = stats.hourFloor('2024-01-01T15:30:45.123-03:00');
+			expect(res.toISOString()).toEqual('2024-01-01T18:00:00.000Z');
+		});
+
+		it('should round time to the start of the hour when no timestamp is provided', () => {
+			const now = new Date();
+			now.setMinutes(0, 0, 0);
+
+			// @ts-expect-error
+			const res = stats.hourFloor();
+			expect(res.toISOString()).toEqual(now.toISOString());
+		});
+	});
+
+	describe('normalizeString', () => {
+		it('should normalize string', () => {
+			// @ts-expect-error
+			expect(stats.normalizeString('Develóper')).toEqual('developer');
+			// @ts-expect-error
+			expect(stats.normalizeString('Devel  óper')).toEqual('devel-oper');
+			// @ts-expect-error
+			expect(stats.normalizeString(' tÉst and TéSt ')).toEqual('test-and-test');
+			// @ts-expect-error
+			expect(stats.normalizeString(' - tÉst - and - TéSt - ')).toEqual('test-and-test');
 		});
 	});
 
@@ -295,7 +434,7 @@ describe('/index', () => {
 			await stats.clearStats('spec');
 		});
 
-		it('should put metrics', async () => {
+		it('should put', async () => {
 			const res = await stats.put({
 				metrics: {
 					nested: {
@@ -309,14 +448,15 @@ describe('/index', () => {
 					value2: 20,
 					value3: 'test'
 				},
-				namespace: 'spec'
+				namespace: 'spec',
+				timestamp: '2024-01-01T15:30:00.000Z'
 			});
 
 			expect(res).toEqual({
 				__createdAt: expect.any(String),
 				__ts: expect.any(Number),
 				__updatedAt: expect.any(String),
-				id: expect.any(String),
+				id: '2024-01-01T15:00:00.000Z',
 				'metrics.nested.deep.value1': 10,
 				'metrics.nested.deep.value2': 20,
 				'metrics.nested.deep.value3.test': 1,
@@ -326,25 +466,6 @@ describe('/index', () => {
 				namespace: 'spec',
 				ttl: expect.any(Number)
 			});
-		});
-	});
-
-	describe('roundToHour', () => {
-		it('should round time to the start of the hour', () => {
-			const date = new Date('2024-01-01T15:30:45.123Z');
-
-			// @ts-expect-error
-			const res = stats.roundToHour(date);
-			expect(res.toISOString()).toEqual('2024-01-01T15:00:00.000Z');
-		});
-
-		it('should not modify original date object', () => {
-			const original = new Date('2024-01-01T15:30:45.123Z');
-			const originalTime = original.getTime();
-
-			// @ts-expect-error
-			stats.roundToHour(original);
-			expect(original.getTime()).toEqual(originalTime);
 		});
 	});
 
