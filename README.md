@@ -11,7 +11,7 @@ A TypeScript library for storing and aggregating time-series metrics using Amazo
 - 💾 **DynamoDB Backend**: Uses DynamoDB for persistent storage of time-series metrics
 - 🔄 **Automatic Aggregation**: Automatically aggregates metrics over time periods
 - 🏷️ **Namespace Support**: Group statistics by namespaces for better organization
-- 📈 **Session Tracking**: Built-in support for tracking user sessions and unique users
+- 📈 **Session Tracking**: Built-in support for tracking user sessions and session durations
 - 📝 **Detailed Logs**: Maintains logs of individual events for detailed analysis
 - ⏱️ **TTL Support**: Automatic cleanup of old data using DynamoDB TTL
 - 📊 **Flexible Time Periods**: Support for hourly, daily, weekly, and monthly aggregation
@@ -194,9 +194,18 @@ Key features:
 - Aggregates numeric values over time periods
 - Counts occurrences of string values (e.g., `status: 'success'` increments `metrics.status.success`)
 - Tracks sessions and unique users with configurable timeout periods
+- Calculates session metrics: `totalSessions`, `totalSessionsDurations`, and `averageSessionsDurations`
 - Rounds timestamps to the appropriate periods for aggregation
 - Handles timezone conversions and ISO8601 dates with offsets
 - Manages data TTL for automatic cleanup
+
+## Session Metrics
+
+The library automatically tracks these session-related metrics:
+
+- `totalSessions`: Count of unique sessions in the time period
+- `totalSessionsDurations`: Sum of all session durations in seconds
+- `averageSessionsDurations`: Average session duration in seconds (`totalSessionsDurations / totalSessions`)
 
 ## DynamoDB Schema
 
@@ -208,7 +217,8 @@ The library uses the following DynamoDB schema across its three tables:
 - Sort Key: `id` (timestamp-based)
 - Additional Attributes:
   - `hits`: Count of events
-  - `sessions`: Count of unique sessions
+  - `totalSessions`: Count of unique sessions
+  - `totalSessionsDurations`: Sum of session durations in seconds
   - `uniqueUsers`: Count of unique users
   - `metrics.*`: Flattened metric values
   - `ttl`: Unix timestamp for DynamoDB TTL
@@ -220,7 +230,7 @@ The library uses the following DynamoDB schema across its three tables:
 - Additional Attributes:
   - `hits`: Count of events in session
   - `index`: Session index counter
-  - `durationSeconds`: Session duration
+  - `durationSeconds`: Session duration in seconds
   - `ttl`: Unix timestamp for DynamoDB TTL
 
 ### Logs Table

@@ -59,7 +59,8 @@ const stats = z.object({
 	hits: z.number(),
 	id: z.string(),
 	namespace: z.string(),
-	sessions: z.number(),
+	totalSessions: z.number(),
+	totalSessionsDurations: z.number(),
 	ttl: z.number().optional(),
 	uniqueUsers: z.number()
 });
@@ -114,7 +115,7 @@ const putSessionInput = z.object({
 	timestamp: z.string().datetime({ offset: true }).optional()
 });
 
-const AGGREGATE_KEYS = ['hits', 'metrics', 'sessions', 'uniqueUsers'];
+const AGGREGATE_KEYS = ['hits', 'metrics', 'totalSessions', 'totalSessionsDurations', 'uniqueUsers'];
 
 namespace Stats {
 	export type ConstructorOptions = {
@@ -396,21 +397,24 @@ class Stats {
 	private generateUpdateExpression({
 		incrementSession,
 		incrementUniqueUser,
-		metrics
+		metrics,
+		session
 	}: {
 		incrementSession: boolean;
 		incrementUniqueUser: boolean;
 		metrics: { key: string; value: number }[];
+		session: Stats.Session | null;
 	}): {
 		attributeNames: Record<string, string>;
 		attributeValues: Record<string, number | string>;
 		updateExpression: string;
 	} {
 		const attributeNames: Record<string, string> = {
-			'#h': 'hits',
-			'#s': 'sessions',
-			'#t': 'ttl',
-			'#u': 'uniqueUsers'
+			'#hits': 'hits',
+			'#ts': 'totalSessions',
+			'#tsd': 'totalSessionsDurations',
+			'#ttl': 'ttl',
+			'#us': 'uniqueUsers'
 		};
 
 		const attributeValues: Record<string, number | string> = {
@@ -418,17 +422,23 @@ class Stats {
 			':ttl': this.getTtlSeconds()
 		};
 
-		if (!incrementSession || !incrementUniqueUser) {
+		if (!incrementSession || !incrementUniqueUser || !session) {
 			attributeValues[':zero'] = 0;
+		}
+
+		if (session) {
+			attributeValues[':tsd'] = session.durationSeconds;
 		}
 
 		const add = _.compact([
 			// Increment hits
-			'#h :one',
+			'#hits :one',
 			// Increment session
-			incrementSession ? '#s :one' : '#s :zero',
+			incrementSession ? '#ts :one' : '#ts :zero',
+			// Increment session duration
+			session ? '#tsd :tsd' : '#tsd :zero',
 			// Increment unique users
-			incrementUniqueUser ? '#u :one' : '#u :zero',
+			incrementUniqueUser ? '#us :one' : '#us :zero',
 			// Increment metrics
 			..._.map(metrics, (metric, index) => {
 				const attrName = `#m${index}`;
@@ -449,7 +459,7 @@ class Stats {
 		return {
 			attributeNames,
 			attributeValues,
-			updateExpression: [`ADD ${add.join(', ')}`, `SET #t = :ttl`].join(' ')
+			updateExpression: [`ADD ${add.join(', ')}`, `SET #ttl = :ttl`].join(' ')
 		};
 	}
 
@@ -500,9 +510,11 @@ class Stats {
 		);
 
 		return {
-			metrics: {},
+			averageSessionsDurations: (aggregatedMetrics.totalSessionsDurations || 0) / (aggregatedMetrics.totalSessions || 1),
 			hits: 0,
-			sessions: 0,
+			metrics: {},
+			totalSessions: 0,
+			totalSessionsDurations: 0,
 			uniqueUsers: 0,
 			...this.unflattenMetrics(aggregatedMetrics),
 			from: from.toISOString(),
@@ -563,6 +575,9 @@ class Stats {
 				// @ts-expect-error
 				histogram[bucketKey][key] = (histogram[bucketKey][key] || 0) + item[key];
 			}
+
+			histogram[bucketKey].averageSessionsDurations =
+				(histogram[bucketKey].totalSessionsDurations || 0) / (histogram[bucketKey].totalSessions || 1);
 		}
 
 		const completeHistogram: Record<string, any> = {};
@@ -668,7 +683,8 @@ class Stats {
 		const { attributeNames, attributeValues, updateExpression } = this.generateUpdateExpression({
 			incrementSession,
 			incrementUniqueUser,
-			metrics
+			metrics,
+			session
 		});
 
 		return this.db.stats.update({

@@ -126,16 +126,18 @@ describe('/index', () => {
 			const { attributeNames, attributeValues, updateExpression } = stats.generateUpdateExpression({
 				incrementSession: false,
 				incrementUniqueUser: false,
-				metrics
+				metrics,
+				session: null
 			});
 
 			expect(attributeNames).toEqual({
-				'#h': 'hits',
-				'#s': 'sessions',
-				'#t': 'ttl',
-				'#u': 'uniqueUsers',
+				'#hits': 'hits',
 				'#m0': 'metrics.value1',
-				'#m1': 'metrics.value2'
+				'#m1': 'metrics.value2',
+				'#ts': 'totalSessions',
+				'#tsd': 'totalSessionsDurations',
+				'#ttl': 'ttl',
+				'#us': 'uniqueUsers'
 			});
 
 			expect(attributeValues).toEqual({
@@ -145,10 +147,10 @@ describe('/index', () => {
 				':zero': 0
 			});
 
-			expect(updateExpression).toEqual('ADD #h :one, #s :zero, #u :zero, #m0 :one, #m1 :v1 SET #t = :ttl');
+			expect(updateExpression).toEqual('ADD #hits :one, #ts :zero, #tsd :zero, #us :zero, #m0 :one, #m1 :v1 SET #ttl = :ttl');
 		});
 
-		it('should generate with [session, uniqueUser]', () => {
+		it('should generate with [incrementSession, incrementUniqueUser, session]', () => {
 			const metrics = [
 				{ key: 'value1', value: 1 },
 				{ key: 'value2', value: 20 }
@@ -158,25 +160,37 @@ describe('/index', () => {
 			const { attributeNames, attributeValues, updateExpression } = stats.generateUpdateExpression({
 				incrementSession: true,
 				incrementUniqueUser: true,
-				metrics
+				metrics,
+				session: {
+					__createdAt: '2024-01-01T15:30:00.000Z',
+					__updatedAt: '2024-01-01T15:30:00.000Z',
+					durationSeconds: 100,
+					hits: 1,
+					id: 'session-0',
+					index: 0,
+					namespace: 'spec',
+					ttl: expect.any(Number)
+				}
 			});
 
 			expect(attributeNames).toEqual({
-				'#h': 'hits',
+				'#hits': 'hits',
 				'#m0': 'metrics.value1',
 				'#m1': 'metrics.value2',
-				'#s': 'sessions',
-				'#t': 'ttl',
-				'#u': 'uniqueUsers'
+				'#ts': 'totalSessions',
+				'#tsd': 'totalSessionsDurations',
+				'#ttl': 'ttl',
+				'#us': 'uniqueUsers'
 			});
 
 			expect(attributeValues).toEqual({
 				':one': 1,
+				':tsd': 100,
 				':ttl': expect.any(Number),
 				':v1': 20
 			});
 
-			expect(updateExpression).toEqual('ADD #h :one, #s :one, #u :one, #m0 :one, #m1 :v1 SET #t = :ttl');
+			expect(updateExpression).toEqual('ADD #hits :one, #ts :one, #tsd :tsd, #us :one, #m0 :one, #m1 :v1 SET #ttl = :ttl');
 		});
 	});
 
@@ -323,6 +337,7 @@ describe('/index', () => {
 				});
 
 				expect(res).toEqual({
+					averageSessionsDurations: expect.any(Number),
 					from: '2024-01-01T15:00:00.000Z',
 					hits: 3,
 					metrics: {
@@ -342,8 +357,9 @@ describe('/index', () => {
 						value2: 60
 					},
 					namespace: 'spec',
-					sessions: 2,
 					to: '2024-01-02T15:59:59.999Z',
+					totalSessions: 2,
+					totalSessionsDurations: 1,
 					uniqueUsers: 2
 				});
 			});
@@ -356,12 +372,14 @@ describe('/index', () => {
 				});
 
 				expect(res).toEqual({
+					averageSessionsDurations: expect.any(Number),
 					from: '2024-02-01T15:00:00.000Z',
 					hits: 0,
 					metrics: {},
 					namespace: 'spec',
-					sessions: 0,
 					to: '2024-02-02T15:59:59.999Z',
+					totalSessions: 0,
+					totalSessionsDurations: expect.any(Number),
 					uniqueUsers: 0
 				});
 			});
@@ -398,6 +416,7 @@ describe('/index', () => {
 						'2024-01-01T13:00:00.000Z': {},
 						'2024-01-01T14:00:00.000Z': {},
 						'2024-01-01T15:00:00.000Z': {
+							averageSessionsDurations: expect.any(Number),
 							hits: 2,
 							metrics: {
 								nested: {
@@ -415,7 +434,8 @@ describe('/index', () => {
 								value1: 20,
 								value2: 40
 							},
-							sessions: 1,
+							totalSessions: 1,
+							totalSessionsDurations: expect.any(Number),
 							uniqueUsers: 1
 						},
 						'2024-01-01T16:00:00.000Z': {},
@@ -443,6 +463,7 @@ describe('/index', () => {
 					from: '2024-01-01T15:00:00.000Z',
 					histogram: {
 						'2024-01-01T00:00:00.000Z': {
+							averageSessionsDurations: expect.any(Number),
 							hits: 2,
 							metrics: {
 								nested: {
@@ -460,10 +481,12 @@ describe('/index', () => {
 								value1: 20,
 								value2: 40
 							},
-							sessions: 1,
+							totalSessions: 1,
+							totalSessionsDurations: expect.any(Number),
 							uniqueUsers: 1
 						},
 						'2024-01-02T00:00:00.000Z': {
+							averageSessionsDurations: expect.any(Number),
 							hits: 1,
 							metrics: {
 								nested: {
@@ -481,7 +504,8 @@ describe('/index', () => {
 								value1: 10,
 								value2: 20
 							},
-							sessions: 1,
+							totalSessions: 1,
+							totalSessionsDurations: expect.any(Number),
 							uniqueUsers: 1
 						}
 					},
@@ -503,6 +527,7 @@ describe('/index', () => {
 					from: '2024-01-01T03:00:00.000Z',
 					histogram: {
 						'2024-01-01T00:00:00.000Z': {
+							averageSessionsDurations: expect.any(Number),
 							hits: 2,
 							metrics: {
 								nested: {
@@ -520,10 +545,12 @@ describe('/index', () => {
 								value1: 20,
 								value2: 40
 							},
-							sessions: 1,
+							totalSessions: 1,
+							totalSessionsDurations: expect.any(Number),
 							uniqueUsers: 1
 						},
 						'2024-01-02T00:00:00.000Z': {
+							averageSessionsDurations: expect.any(Number),
 							hits: 1,
 							metrics: {
 								nested: {
@@ -541,7 +568,8 @@ describe('/index', () => {
 								value1: 10,
 								value2: 20
 							},
-							sessions: 1,
+							totalSessions: 1,
+							totalSessionsDurations: expect.any(Number),
 							uniqueUsers: 1
 						},
 						'2024-01-03T00:00:00.000Z': {}
@@ -594,7 +622,7 @@ describe('/index', () => {
 		});
 
 		afterEach(() => {
-			vi.clearAllMocks();
+			vi.restoreAllMocks();
 		});
 
 		it('should return true when session is expired', () => {
@@ -665,6 +693,7 @@ describe('/index', () => {
 		});
 
 		afterEach(async () => {
+			vi.restoreAllMocks();
 			await stats.clear('spec');
 		});
 
@@ -706,13 +735,23 @@ describe('/index', () => {
 				'metrics.value2': 20,
 				'metrics.value3.test': 1,
 				namespace: 'spec',
-				sessions: 0,
+				totalSessions: 0,
+				totalSessionsDurations: 0,
 				ttl: expect.any(Number),
 				uniqueUsers: 0
 			});
 		});
 
 		it('should put with session', async () => {
+			await stats.put({
+				metrics: {},
+				namespace: 'spec',
+				session: 'session-id',
+				timestamp: '2024-01-01T15:30:00.000Z'
+			});
+
+			vi.spyOn(_, 'now').mockReturnValue(new Date(Date.now() + 10 * 1000).getTime());
+
 			const res = await stats.put({
 				metrics: {
 					value1: 10,
@@ -721,7 +760,7 @@ describe('/index', () => {
 				},
 				namespace: 'spec',
 				session: 'session-id',
-				timestamp: '2024-01-01T15:30:00.000Z'
+				timestamp: '2024-01-01T15:40:00.000Z'
 			});
 
 			// @ts-expect-error
@@ -744,12 +783,13 @@ describe('/index', () => {
 				__ts: expect.any(Number),
 				__updatedAt: expect.any(String),
 				id: '2024-01-01T15:00:00.000Z',
-				hits: 1,
+				hits: 2,
 				'metrics.value1': 10,
 				'metrics.value2': 20,
 				'metrics.value3.test': 1,
 				namespace: 'spec',
-				sessions: 1,
+				totalSessions: 1,
+				totalSessionsDurations: 10,
 				ttl: expect.any(Number),
 				uniqueUsers: 1
 			});
