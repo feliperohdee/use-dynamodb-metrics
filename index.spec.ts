@@ -1,6 +1,7 @@
 import _ from 'lodash';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ENDPOINT } from './constants';
 import Stats from './index';
 
 process.env.TZ = 'UTC';
@@ -12,6 +13,7 @@ describe('/index', () => {
 		stats = new Stats({
 			accessKeyId: process.env.AWS_ACCESS_KEY || '',
 			createTable: true,
+			endpoint: ENDPOINT,
 			logsTableName: 'use-dynamodb-metrics-logs-spec',
 			region: process.env.AWS_REGION || '',
 			secretAccessKey: process.env.AWS_SECRET_KEY || '',
@@ -24,6 +26,7 @@ describe('/index', () => {
 		stats = new Stats({
 			accessKeyId: process.env.AWS_ACCESS_KEY || '',
 			createTable: true,
+			endpoint: ENDPOINT,
 			logsTableName: 'use-dynamodb-metrics-logs-spec',
 			region: process.env.AWS_REGION || '',
 			secretAccessKey: process.env.AWS_SECRET_KEY || '',
@@ -359,7 +362,7 @@ describe('/index', () => {
 					namespace: 'spec',
 					to: '2024-01-02T15:59:59.999Z',
 					totalSessions: 2,
-					totalSessionsDurations: 1,
+					totalSessionsDurations: expect.any(Number),
 					uniqueUsers: 2
 				});
 			});

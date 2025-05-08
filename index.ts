@@ -43,6 +43,7 @@ const session = z.object({
 	ttl: z.number().optional()
 });
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const stats = z.object({
 	__createdAt: z
 		.string()
@@ -121,6 +122,7 @@ namespace Stats {
 	export type ConstructorOptions = {
 		accessKeyId: string;
 		createTable?: boolean;
+		endpoint?: string;
 		logsTableName: string;
 		normalizeKeys?: boolean;
 		region: string;
@@ -160,6 +162,7 @@ class Stats {
 		const db = {
 			logs: new Dynamodb<Stats.Log>({
 				accessKeyId: options.accessKeyId,
+				endpoint: options.endpoint,
 				region: options.region,
 				schema: {
 					partition: 'namespace',
@@ -170,6 +173,7 @@ class Stats {
 			}),
 			session: new Dynamodb<Stats.Session>({
 				accessKeyId: options.accessKeyId,
+				endpoint: options.endpoint,
 				region: options.region,
 				schema: {
 					partition: 'namespace',
@@ -180,6 +184,7 @@ class Stats {
 			}),
 			stats: new Dynamodb<Stats.Stats>({
 				accessKeyId: options.accessKeyId,
+				endpoint: options.endpoint,
 				region: options.region,
 				schema: {
 					partition: 'namespace',
