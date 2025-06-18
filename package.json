@@ -2,7 +2,7 @@
 	"name": "use-dynamodb-metrics",
 	"dependencies": {
 		"lodash": "^4.17.21",
-		"use-dynamodb": "^1.0.69",
+		"use-dynamodb": "^1.0.70",
 		"use-zod-default": "^1.0.14",
 		"zod": "^3.24.1"
 	},
@@ -34,5 +34,5 @@
 		"test": "./.test.sh",
 		"test:coverage": "rm -rf coverage && ./.test.sh --run --coverage"
 	},
-	"version": "1.0.11"
+	"version": "1.0.12"
 }
