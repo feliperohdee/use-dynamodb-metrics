@@ -1312,10 +1312,10 @@
   resolved "https://registry.yarnpkg.com/@types/json-schema/-/json-schema-7.0.15.tgz#596a1747233694d50f6ad8a7869fcb6f56cf5841"
   integrity sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==
 
-"@types/lodash@^4.17.14":
-  version "4.17.15"
-  resolved "https://registry.yarnpkg.com/@types/lodash/-/lodash-4.17.15.tgz#12d4af0ed17cc7600ce1f9980cec48fc17ad1e89"
-  integrity sha512-w/P33JFeySuhN6JLkysYUK2gEmy9kHHFN7E8ro0tkfmlDOgxBDzWEZ/J8cWA+fHqFevpswDTFZnDx+R9lbL6xw==
+"@types/lodash@^4.17.18":
+  version "4.17.18"
+  resolved "https://registry.yarnpkg.com/@types/lodash/-/lodash-4.17.18.tgz#4710e7db5b3857103764bf7b7b666414e6141baf"
+  integrity sha512-KJ65INaxqxmU6EoCiJmRPZC9H9RVWCRd349tXM2M3O5NA7cY6YL7c0bHAHQ93NOfTObEQ004kd2QVHs/r0+m4g==
 
 "@types/node@^22.10.10":
   version "22.13.5"
@@ -3023,13 +3023,13 @@ use-dynamodb@^1.0.70:
     lodash "^4.17.21"
     use-async-helpers "^1.0.31"
 
-use-zod-default@^1.0.14:
-  version "1.0.14"
-  resolved "https://registry.yarnpkg.com/use-zod-default/-/use-zod-default-1.0.14.tgz#e13c87c5ab8d85c3ae05ed30331a25bca92fcc68"
-  integrity sha512-82MvLEaa23FBKzi8B94+IQ0LrSgnNOEKN2GCGjtetSXTjH8gTbVMl9OCxYQ7jSZmtSnzdeHPgHODpXXWHfu6uA==
+use-zod-default@^1.0.15:
+  version "1.0.15"
+  resolved "https://registry.yarnpkg.com/use-zod-default/-/use-zod-default-1.0.15.tgz#a5ded1a88ac3cd1e58c97a259838b09be1fa569a"
+  integrity sha512-mQq3BycYIXbfZ87pFC/5CO4//X7/ONAPi5bp465dJpbDYG8i0frhPLC231cE9YQ7EZPURZ+YG48Kdah+aTYsig==
   dependencies:
     lodash "^4.17.21"
-    zod "^3.23.8"
+    zod "^3.25.67"
 
 uuid@^9.0.1:
   version "9.0.1"
@@ -3142,7 +3142,7 @@ zod-to-json-schema@^3.24.1:
   resolved "https://registry.yarnpkg.com/zod-to-json-schema/-/zod-to-json-schema-3.24.5.tgz#d1095440b147fb7c2093812a53c54df8d5df50a3"
   integrity sha512-/AuWwMP+YqiPbsJx5D6TfgRTc4kTLjsh5SOcd4bLsfUg2RcEXrFMJl1DGgdHy2aCfsIA/cr/1JM0xcB2GZji8g==
 
-zod@^3.23.8, zod@^3.24.1:
+zod@^3.23.8:
   version "3.24.2"
   resolved "https://registry.yarnpkg.com/zod/-/zod-3.24.2.tgz#8efa74126287c675e92f46871cfc8d15c34372b3"
   integrity sha512-lY7CDW43ECgW9u1TcT3IoXHflywfVqDYze4waEz812jR/bZ8FHDsl7pFQoSZTz5N+2NqRXs8GBwnAwo3ZNxqhQ==
@@ -3151,3 +3151,8 @@ zod@^3.24.2:
   version "3.24.4"
   resolved "https://registry.yarnpkg.com/zod/-/zod-3.24.4.tgz#e2e2cca5faaa012d76e527d0d36622e0a90c315f"
   integrity sha512-OdqJE9UDRPwWsrHjLN2F8bPxvwJBK22EHLWtanu0LSYr5YqzsaaW3RMgmjwr8Rypg5k+meEJdSPXJZXE/yqOMg==
+
+zod@^3.25.67:
+  version "3.25.67"
+  resolved "https://registry.yarnpkg.com/zod/-/zod-3.25.67.tgz#62987e4078e2ab0f63b491ef0c4f33df24236da8"
+  integrity sha512-idA2YXwpCdqUSKRCACDE6ItZD9TZzy3OZMtpfLoh6oPR47lipysRrJfjzMqFxQ3uJuUPyUeWe1r9vLH33xO/Qw==

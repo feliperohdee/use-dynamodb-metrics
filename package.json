@@ -3,11 +3,11 @@
 	"dependencies": {
 		"lodash": "^4.17.21",
 		"use-dynamodb": "^1.0.70",
-		"use-zod-default": "^1.0.14",
-		"zod": "^3.24.1"
+		"use-zod-default": "^1.0.15",
+		"zod": "^3.25.67"
 	},
 	"devDependencies": {
-		"@types/lodash": "^4.17.14",
+		"@types/lodash": "^4.17.18",
 		"@types/node": "^22.10.10",
 		"@vitest/coverage-v8": "^2.1.8",
 		"eslint": "^9.26.0",
@@ -34,5 +34,5 @@
 		"test": "./.test.sh",
 		"test:coverage": "rm -rf coverage && ./.test.sh --run --coverage"
 	},
-	"version": "1.0.12"
+	"version": "1.0.13"
 }
