@@ -9,13 +9,16 @@
 		"prettier": "^3.4.2",
 		"typescript": "^5.7.3",
 		"typescript-eslint": "^8.32.0",
-		"use-dynamodb": "^1.0.70",
+		"use-dynamodb": "^1.0.71",
 		"use-zod-default": "^1.0.18",
 		"vitest": "^2.1.8",
 		"zod": "^4.0.17"
 	},
 	"peerDependencies": {
+		"@aws-sdk/client-dynamodb": "^3.868.0",
+		"@aws-sdk/lib-dynamodb": "^3.868.0",
 		"lodash": "^4.17.21",
+		"use-async-helpers": "^1.0.31",
 		"use-dynamodb": "^1.0.70",
 		"use-zod-default": "^1.0.18",
 		"zod": "^4.0.17"
@@ -37,5 +40,5 @@
 		"test": "./.test.sh",
 		"test:coverage": "rm -rf coverage && ./.test.sh --run --coverage"
 	},
-	"version": "1.0.14"
+	"version": "1.0.15"
 }
