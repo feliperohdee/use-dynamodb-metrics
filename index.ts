@@ -4,37 +4,25 @@ import z from 'zod';
 import zDefault from 'use-zod-default';
 
 const log = z.object({
-	__createdAt: z
-		.string()
-		.datetime()
-		.default(() => {
-			return new Date().toISOString();
-		}),
-	__updatedAt: z
-		.string()
-		.datetime()
-		.default(() => {
-			return new Date().toISOString();
-		}),
+	__createdAt: z.iso.datetime({ offset: true }).default(() => {
+		return new Date().toISOString();
+	}),
+	__updatedAt: z.iso.datetime().default(() => {
+		return new Date().toISOString();
+	}),
 	id: z.string(),
-	metrics: z.record(z.any()),
+	metrics: z.record(z.string(), z.any()),
 	namespace: z.string(),
 	session: z.string()
 });
 
 const session = z.object({
-	__createdAt: z
-		.string()
-		.datetime()
-		.default(() => {
-			return new Date().toISOString();
-		}),
-	__updatedAt: z
-		.string()
-		.datetime()
-		.default(() => {
-			return new Date().toISOString();
-		}),
+	__createdAt: z.iso.datetime().default(() => {
+		return new Date().toISOString();
+	}),
+	__updatedAt: z.iso.datetime().default(() => {
+		return new Date().toISOString();
+	}),
 	durationSeconds: z.number(),
 	hits: z.number(),
 	index: z.number(),
@@ -45,18 +33,12 @@ const session = z.object({
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const stats = z.object({
-	__createdAt: z
-		.string()
-		.datetime()
-		.default(() => {
-			return new Date().toISOString();
-		}),
-	__updatedAt: z
-		.string()
-		.datetime()
-		.default(() => {
-			return new Date().toISOString();
-		}),
+	__createdAt: z.iso.datetime().default(() => {
+		return new Date().toISOString();
+	}),
+	__updatedAt: z.iso.datetime().default(() => {
+		return new Date().toISOString();
+	}),
 	hits: z.number(),
 	id: z.string(),
 	namespace: z.string(),
@@ -71,34 +53,34 @@ const metricsInput = z.record(
 	z.union([
 		z.string(),
 		z.number(),
-		z.record(z.any()) // Allow nested objects
+		z.record(z.string(), z.any()) // Allow nested objects
 	])
 );
 
 const fetchLogsInput = z.object({
 	desc: z.boolean().default(false),
-	from: z.string().datetime({ offset: true }).optional(),
+	from: z.iso.datetime({ offset: true }).optional(),
 	limit: z.number().min(1).max(1000).default(100),
 	namespace: z.string(),
 	session: z.string().optional(),
-	startKey: z.record(z.any()).optional(),
-	to: z.string().datetime({ offset: true }).optional()
+	startKey: z.record(z.string(), z.any()).optional(),
+	to: z.iso.datetime({ offset: true }).optional()
 });
 
 const fetchSessionsInput = z.object({
 	desc: z.boolean().default(false),
-	from: z.string().datetime({ offset: true }).optional(),
+	from: z.iso.datetime({ offset: true }).optional(),
 	id: z.string().optional(),
 	limit: z.number().min(1).max(1000).default(100),
 	namespace: z.string(),
-	startKey: z.record(z.any()).optional(),
-	to: z.string().datetime({ offset: true }).optional()
+	startKey: z.record(z.string(), z.any()).optional(),
+	to: z.iso.datetime({ offset: true }).optional()
 });
 
 const getStatsInput = z.object({
 	namespace: z.string(),
-	from: z.string().datetime({ offset: true }),
-	to: z.string().datetime({ offset: true })
+	from: z.iso.datetime({ offset: true }),
+	to: z.iso.datetime({ offset: true })
 });
 
 const getStatsHistogramInput = getStatsInput.extend({ period: z.enum(['hour', 'day', 'week', 'month']) });
@@ -107,13 +89,13 @@ const putInput = z.object({
 	namespace: z.string(),
 	metrics: metricsInput,
 	session: z.string().optional(),
-	timestamp: z.string().datetime({ offset: true }).optional()
+	timestamp: z.iso.datetime({ offset: true }).optional()
 });
 
 const putSessionInput = z.object({
 	id: z.string(),
 	namespace: z.string(),
-	timestamp: z.string().datetime({ offset: true }).optional()
+	timestamp: z.iso.datetime({ offset: true }).optional()
 });
 
 const AGGREGATE_KEYS = ['hits', 'metrics', 'totalSessions', 'totalSessionsDurations', 'uniqueUsers'];
