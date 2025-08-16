@@ -11,12 +11,12 @@ describe('/index', () => {
 
 	beforeAll(() => {
 		stats = new Stats({
-			accessKeyId: process.env.AWS_ACCESS_KEY || '',
+			accessKeyId: 'test',
 			createTable: true,
 			endpoint: ENDPOINT,
 			logsTableName: 'use-dynamodb-metrics-logs-spec',
-			region: process.env.AWS_REGION || '',
-			secretAccessKey: process.env.AWS_SECRET_KEY || '',
+			region: 'us-east-1',
+			secretAccessKey: 'test',
 			sessionTableName: 'use-dynamodb-metrics-sessions-spec',
 			statsTableName: 'use-dynamodb-metrics-stats-spec'
 		});
@@ -24,12 +24,12 @@ describe('/index', () => {
 
 	beforeEach(() => {
 		stats = new Stats({
-			accessKeyId: process.env.AWS_ACCESS_KEY || '',
+			accessKeyId: 'test',
 			createTable: true,
 			endpoint: ENDPOINT,
 			logsTableName: 'use-dynamodb-metrics-logs-spec',
-			region: process.env.AWS_REGION || '',
-			secretAccessKey: process.env.AWS_SECRET_KEY || '',
+			region: 'us-east-1',
+			secretAccessKey: 'test',
 			sessionTableName: 'use-dynamodb-metrics-sessions-spec',
 			statsTableName: 'use-dynamodb-metrics-stats-spec'
 		});
